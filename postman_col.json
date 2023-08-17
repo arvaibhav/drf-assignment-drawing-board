@@ -1,0 +1,110 @@
+{
+    "info": {
+        "name": "Drawing Board API",
+        "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+    },
+    "item": [
+        {
+            "name": "Create Drawing Board",
+            "request": {
+                "method": "POST",
+                "header": [
+                    {
+                        "key": "USERID",
+                        "value": "<user_id>"
+                    },
+                    {
+                        "key": "Content-Type",
+                        "value": "application/json"
+                    }
+                ],
+                "url": "http://127.0.0.1:8000/drawing_boards/",
+                "body": {
+                    "mode": "raw",
+                    "raw": "{\"permission_type\": 3, \"shared_to\": [{\"user_id\": 2,\"can_write\": false}]}"
+                }
+            }
+        },
+        {
+            "name": "Drawing Board Detail View",
+            "request": {
+                "method": "GET",
+                "header": [
+                    {
+                        "key": "USERID",
+                        "value": "<user_id>"
+                    }
+                ],
+                "url": "http://127.0.0.1:8000/drawing_boards/{unique_id}/"
+            }
+        },
+        {
+            "name": "Share Drawing Board",
+            "request": {
+                "method": "POST",
+                "header": [
+                    {
+                        "key": "USERID",
+                        "value": "<user_id>"
+                    },
+                    {
+                        "key": "Content-Type",
+                        "value": "application/json"
+                    }
+                ],
+                "url": "http://127.0.0.1:8000/drawing_boards/{unique_id}/share/",
+                "body": {
+                    "mode": "raw",
+                    "raw": "{\"permission_type\": 3, \"shared_to\": [{\"user_id\": 4,\"can_write\": true}]}"
+                }
+            }
+        },
+        {
+            "name": "Drawing Board List View",
+            "request": {
+                "method": "GET",
+                "header": [
+                    {
+                        "key": "USERID",
+                        "value": "<user_id>"
+                    }
+                ],
+                "url": "http://127.0.0.1:8000/drawing_boards/"
+            }
+        },
+        {
+            "name": "User Signup",
+            "request": {
+                "method": "POST",
+                "header": [
+                    {
+                        "key": "Content-Type",
+                        "value": "application/json"
+                    }
+                ],
+                "url": "http://127.0.0.1:8000/users/signup/",
+                "body": {
+                    "mode": "raw",
+                    "raw": "{\"username\": \"<username>\", \"password\": \"<password>\", \"name\": \"<name>\"}"
+                }
+            }
+        },
+        {
+            "name": "User Login",
+            "request": {
+                "method": "POST",
+                "header": [
+                    {
+                        "key": "Content-Type",
+                        "value": "application/json"
+                    }
+                ],
+                "url": "http://127.0.0.1:8000/users/login/",
+                "body": {
+                    "mode": "raw",
+                    "raw": "{\"username\": \"<username>\", \"password\": \"<password>\"}"
+                }
+            }
+        }
+    ]
+}
