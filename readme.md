@@ -83,3 +83,35 @@ Users can update the sharing permissions of a drawing board by sending a POST re
 * PROTECTED_READ_WRITE: Only authenticated users can read and modify the drawing board.
 * USER_READ: Only the owner and users shared with can read the drawing board.
 * USER_READ_WRITE: Only the owner and users shared with can read and modify the drawing board.
+
+
+___
+
+# Drawing Session Process Flow
+The DrawingSession model defines how a user can perform actions on a drawing board, capturing and storing the details of each action. Below is the working flow for handling drawing sessions:
+ 
+---
+
+### WebSocket Functionality (Planned)
+
+In the future, WebSocket functionality will be added to enable real-time collaboration on drawing sessions. Here are the checks and features that will be implemented:
+
+1. **User Start Session:** When a user begins drawing, the client will send a "start session" request along with the necessary meta-data to initiate the drawing session. If the user is not authenticated or does not have the right permissions, an error will be returned.
+
+2. **User End Session:** When a user completes drawing, the client will send an "end session" request along with the respective meta-data to conclude the drawing session. If the user is not authenticated or does not have the right permissions, an error will be returned.
+
+3. **Interactions During Ongoing Session:** If another user attempts to interact with a drawing session that is already ongoing, an error will be returned, indicating that an action is in progress by another user. This ensures that only one user can perform actions on a drawing session at a time.
+
+4. **Unauthorized User Interactions:** If a user tries to interact with a drawing session but is not authenticated or does not have the appropriate permissions, an error will be returned. This ensures that only authorized users can perform actions on a drawing board.
+
+5. **Undo/Redo Version System:** A versioning system will be implemented to allow users to undo and redo actions within a drawing session. Each action will be assigned a version number, and users will be able to navigate through versions to achieve undo/redo functionality.
+
+
+####    Performing Actions:
+The user can perform various actions, defined in core/constants.py within the ActionTypeEnum class. These actions include:
+
+  -   Freehand drawing (FREEHAND_DRAW)
+  - Drawing lines (DRAW_LINE)
+  - Drawing polygons (DRAW_POLYGON)
+  - Writing text (WRITE_TEXT)
+---
