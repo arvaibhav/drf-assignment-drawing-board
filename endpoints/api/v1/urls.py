@@ -9,6 +9,7 @@ from endpoints.api.v1.views.drawing_board import (
 urlpatterns = [
     path("signup/", UserSignupView.as_view(), name="signup"),
     path("login/", UserLoginView.as_view(), name="login"),
+    path("refresh-token/", RefreshTokenView.as_view(), name="refresh-token"),
     path("drawing_boards/", DrawingBoardListView.as_view(), name="drawing_board_list"),
     path(
         "drawing_boards/create/",
@@ -16,13 +17,13 @@ urlpatterns = [
         name="drawing_board_create",
     ),
     re_path(
-        r"drawing_boards/(?P<unique_id>[0-9a-f-]+)/$",
+        r"drawing_boards/(?P<drawing_board_id>[0-9a-f-]+)/$",
         DrawingBoardDetailView.as_view(),
         name="drawing_board_detail",
     ),
     path(
-        "api/v1/drawing_boards/<uuid:drawing_board_id>/permissions/",
+        "drawing_boards/<uuid:drawing_board_id>/permissions/<str:operation>/",  # operation(add or remove)
         DrawingBoardAccessControlView.as_view(),
-        name="drawing-board-permissions-update",
+        name="drawing-board-permissions",
     ),
 ]

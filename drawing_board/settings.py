@@ -11,6 +11,7 @@ https://docs.djangoproject.com/en/4.2/ref/settings/
 """
 
 from pathlib import Path
+from config_manager import get_config
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -22,7 +23,8 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 SECRET_KEY = "django-insecure-cfq^j$2zeb54i@m)0un#vwq+%j!&5a8&sz2egcq-@*h5mh(2tk"
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+config = get_config()
+DEBUG = config.DEBUG
 
 ALLOWED_HOSTS = []
 
@@ -37,8 +39,8 @@ INSTALLED_APPS = [
     "django.contrib.staticfiles",
     "endpoints",
     "db",
-    "channels",
     "rest_framework.authtoken",
+    "channels",
 ]
 
 MIDDLEWARE = [
@@ -49,13 +51,13 @@ MIDDLEWARE = [
     "django.contrib.auth.middleware.AuthenticationMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
+    "endpoints.middleware.error_logging_middleware.HttpErrorLoggingMiddleware",
+    "endpoints.middleware.authentication.auth_middleware.HttpTokenMiddleware",
 ]
 
-REST_FRAMEWORK = {
-    "DEFAULT_AUTHENTICATION_CLASSES": [
-        "rest_framework.authentication.TokenAuthentication",
-    ],
-}
+CHANNEL_LAYERS = {"default": {"BACKEND": "channels.layers.InMemoryChannelLayer"}}
+
+ASGI_APPLICATION = "drawing_board.routing.application"
 
 ROOT_URLCONF = "drawing_board.urls"
 
@@ -125,4 +127,3 @@ STATIC_URL = "static/"
 # https://docs.djangoproject.com/en/4.2/ref/settings/#default-auto-field
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
-ASGI_APPLICATION = "drawing_board.asgi.application"

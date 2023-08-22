@@ -9,6 +9,40 @@
 4. Run the Docker container: `docker run -p 8000:8000 drawing_board`
 5. The API will be accessible at `http://127.0.0.1:8000/`.
 
+# Project Structure
+
+## Configuration
+
+- `config_manager`: Handles various configurations such as development and production settings.
+  - `/base.py`: Base configuration file.
+  - `/development.py`: Development-specific settings.
+  - `/production.py`: Production-specific settings.
+
+## Core Logic
+
+- `core`: Contains core functionalities and constants.
+  - `/concurrent_drawing_control.py`: Manages concurrent drawing controls.
+  - `/constants.py`: Defines constant values used across the project.
+  - `/drawing_board_session.py`: Handles drawing board sessions.
+  - `/drawing_board_user_permission.py`: Manages user permissions for drawing boards.
+
+## Database
+
+- `db`: Database-related files including migrations and models.
+  - `/models`: Database model definitions.
+
+## Endpoints
+
+- `endpoints`: Defines API endpoints, middleware, and websockets.
+  - `/api`: API definitions, serializers, and tests.
+  - `/middleware`: Middleware for authentication and error logging.
+  - `/websockets`: Websocket-related files.
+
+## Utilities
+
+- `utils`: General utility functions and classes.
+  - `/distributed_lock.py`: A utility for distributed locking mechanism. (Interface)
+
 ## API Overview
 
 The Drawing Board API allows users to manage drawing boards, including creating, sharing, viewing, and listing drawing boards. Here's a high-level flow description:
@@ -78,40 +112,107 @@ Users can update the sharing permissions of a drawing board by sending a POST re
 # Permissions
 #####  In the core/constants.py file, there are defined constants for different permission types:
 
-* PUBLIC_READ: Anyone can read the drawing board.
-* PROTECTED_READ: Only authenticated users can read the drawing board.
-* PROTECTED_READ_WRITE: Only authenticated users can read and modify the drawing board.
-* USER_READ: Only the owner and users shared with can read the drawing board.
-* USER_READ_WRITE: Only the owner and users shared with can read and modify the drawing board.
+* `PUBLIC_READ` (1): Anyone can read the drawing board.
+* `USER_READ` (2): Only the owner and users shared with can read the drawing board.
+* `USER_WRITE` (4): Only the owner and users shared with can modify the drawing board.
+* `PROTECTED_READ` (8): Not specific to a particular user, but any registered user can read the drawing board.
+* `PROTECTED_WRITE` (16): Not specific to a particular user, but any registered user can modify the drawing board.
+
+There are also combination permissions:
+
+* `USER_WRITE_PUBLIC_READ` (5): Combination of `USER_WRITE` and `PUBLIC_READ`.
+* `PROTECTED_WRITE_PUBLIC_READ` (17): Combination of `PROTECTED_WRITE` and `PUBLIC_READ`.
+* `USER_WRITE_PROTECTED_READ` (12): Combination of `USER_WRITE` and `PROTECTED_READ`.
 
 
-___
+# Drawing Board WebSocket Consumer
+## 1. connect method
 
-# Drawing Session Process Flow
-The DrawingSession model defines how a user can perform actions on a drawing board, capturing and storing the details of each action. Below is the working flow for handling drawing sessions:
- 
----
+- **Purpose**: Establishes a WebSocket connection between the client and server.
+- **Process**:
+  - Parses the query string to extract the drawing board ID and user ID.
+  - Retrieves the permissions for the current user on the given drawing board.
+  - Adds the connection to the group if the user has read permission and accepts the WebSocket connection.
+  - Closes the connection with a specific code if the user doesn't have read permission.
 
-### WebSocket Functionality (Planned)
+## 2. disconnect method
 
-In the future, WebSocket functionality will be added to enable real-time collaboration on drawing sessions. Here are the checks and features that will be implemented:
+- **Purpose**: Handles the closure of a WebSocket connection.
+- **Process**:
+  - Closes all drawing sessions associated with the current user and drawing board.
+  - Removes the connection from the group.
+  - If the user evokes particular user permission, we disconnect their connection (ref: `core.drawing_board_user_permission.remove_users_from_drawing_board_and_socket_channel`).
 
-1. **User Start Session:** When a user begins drawing, the client will send a "start session" request along with the necessary meta-data to initiate the drawing session. If the user is not authenticated or does not have the right permissions, an error will be returned.
+## 3. receive_json method
 
-2. **User End Session:** When a user completes drawing, the client will send an "end session" request along with the respective meta-data to conclude the drawing session. If the user is not authenticated or does not have the right permissions, an error will be returned.
+- **Purpose**: Handles incoming JSON messages over the WebSocket.
+- **Process**:
+  - Client uses this to start and end drawing sessions:
+  - Start drawing session flow:
+    - Extracts action and metadata for drawing operation.
+    - Calls `do_drawing_operation_sessions` to perform the drawing operation.
+    - Sends an error message if a `DrawingOperationException` is caught.
+    - **Performing Actions**: The user can perform various actions, defined in `core/constants.py` within the ActionTypeEnum class. These actions include:
+        - Freehand drawing (FREEHAND_DRAW)
+        - Drawing lines (DRAW_LINE)
+        - Drawing polygons (DRAW_POLYGON)
+        - Writing text (WRITE_TEXT)
+        - UNDO
+        - REDO
+  - End drawing session:
+    - Sends a response to all group members using broadcast if successful during the end of the drawing session.
 
-3. **Interactions During Ongoing Session:** If another user attempts to interact with a drawing session that is already ongoing, an error will be returned, indicating that an action is in progress by another user. This ensures that only one user can perform actions on a drawing session at a time.
+## For Concurrency Management -> Use of Lock
 
-4. **Unauthorized User Interactions:** If a user tries to interact with a drawing session but is not authenticated or does not have the appropriate permissions, an error will be returned. This ensures that only authorized users can perform actions on a drawing board.
+- **Initial Implementation**: Uses an in-memory lock.
+- **Alternative**: Planned to be replaced by a distributed lock using Redis for more robust concurrent control across multiple servers.
+- **Usage in Code**:
+  - Acquires a lock based on the drawing board ID in `do_drawing_operation_sessions`.
+  - Raises a `DrawingOperationException` if the lock cannot be acquired.
+  - Releases the lock after the operation, allowing others to proceed.
+- **Note**: The lock mechanism ensures that these operations occur in a sequential manner for each drawing board, preventing conflicting or concurrent modifications.
+  - Indeed: If a drawing session is started by user X, then all have to wait till X's drawing session is not closed; `do_drawing_operation_sessions` can throw an error based on concurrent lock or if drawing action is being performed by another user and not closed yet (DB query based check wherein models' `ended_at` field is updated when the session ends).
+# Other Enhancement
+# Authentication Using Encrypted JWT with Refresh Mechanism
+- **Reduced Query Costs**: By storing user information in the token, the system avoids additional queries to fetch user data.
+- **Flexibility**: Supports both REST and WebSocket connections and can implement on different lang. backend (compared to cookies which are not supportable)
 
-5. **Undo/Redo Version System:** A versioning system will be implemented to allow users to undo and redo actions within a drawing session. Each action will be assigned a version number, and users will be able to navigate through versions to achieve undo/redo functionality.
+## Middleware for JWT Authentication
+
+### HTTP Token Middleware
+
+The `HttpTokenMiddleware` class is responsible for extracting and validating the JWT from the HTTP header in the REST API requests. Upon successful validation, it adds the payload to the request object. In case of any error, it returns a 401 Unauthorized response.
+
+### WebSocket Token Middleware
+
+The `WebsocketTokenMiddleware` class handles WebSocket connections. It extracts the token from the WebSocket header and validates it. If the token is valid, the payload is added to the scope object, and the connection is allowed. If there's an error in validation, the connection is denied.
+
+## User Authentication Views
+
+### User Signup View
+
+The `UserSignupView` is a create API view that handles user registration. After successful registration, it returns access and refresh tokens.
+
+### User Login View
+
+The `UserLoginView` handles user login and, upon successful authentication, returns access and refresh tokens. The `generate_user_token` function is used to create these tokens.
+
+### Refresh Token View
+
+The `RefreshTokenView` allows the user to refresh the access token using the refresh token. This ensures that the user can continue to authenticate without having to log in again when the access token expires.
+
+## Token Generation and Validation Functions
+
+- **generate_user_token**: Generates access and refresh tokens for the given user ID.
+- **create_access_token**: Creates an access token using the user information.
+- **create_refresh_token**: Creates a refresh token that can be used to obtain a new access token.
+- **validate_access_token**: Validates the token to ensure its integrity and authenticity.
 
 
-####    Performing Actions:
-The user can perform various actions, defined in core/constants.py within the ActionTypeEnum class. These actions include:
+- **Refresh Token**: Alongside the JWT, a refresh token is issued at login.
+- **Expiration Handling**: When the JWT expires, the refresh token can be used to obtain a new JWT.
+- **Security Measures**: Refresh tokens are stored securely and can be revoked if needed.
 
-  -   Freehand drawing (FREEHAND_DRAW)
-  - Drawing lines (DRAW_LINE)
-  - Drawing polygons (DRAW_POLYGON)
-  - Writing text (WRITE_TEXT)
+
+
 ---

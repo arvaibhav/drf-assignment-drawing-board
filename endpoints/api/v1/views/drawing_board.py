@@ -1,219 +1,87 @@
-from django.contrib.auth.models import User
 from rest_framework import generics, status
 from rest_framework.generics import get_object_or_404
 from rest_framework.response import Response
 from rest_framework.views import APIView
-
 from core.constants import PermissionTypeEnum
-from db.models import DrawingBoard, SharedDrawingBoard
+from core.drawing_board_user_permission import (
+    DrawingBoardAuthorization,
+    remove_users_from_drawing_board_and_socket_channel,
+    add_user_in_drawing_board,
+)
+from db.models import DrawingBoard
 from endpoints.api.v1.serializers.drawing_board import (
     DrawingBoardCreateSerializer,
     DrawingBoardDetailSerializer,
     DrawingBoardListSerializer,
+    DrawingBoardAccessControlSerializer,
 )
-from rest_framework.permissions import IsAuthenticated
+from endpoints.middleware.authentication.auth import JwtAuthenticatedUser
 
 
 class DrawingBoardCreateView(generics.CreateAPIView):
     serializer_class = DrawingBoardCreateSerializer
-    permission_classes = [IsAuthenticated]
+    permission_classes = [JwtAuthenticatedUser]
 
     def create(self, request, *args, **kwargs):
-        user_id = request.META.get("HTTP_USERID")
-        try:
-            owner = User.objects.get(pk=user_id)
-        except User.DoesNotExist:
-            return Response(
-                {"error": "User not found"}, status=status.HTTP_400_BAD_REQUEST
-            )
-
-        permission_type = request.data.get("permission_type")
-        shared_to = request.data.get("shared_to", [])
-
-        if permission_type not in [
-            PermissionTypeEnum.PUBLIC_READ.value,
-            PermissionTypeEnum.PROTECTED_READ.value,
-            PermissionTypeEnum.PROTECTED_READ_WRITE.value,
-            PermissionTypeEnum.USER_READ.value,
-            PermissionTypeEnum.USER_READ_WRITE.value,
-        ]:
-            return Response(
-                {"error": "Invalid permission type"}, status=status.HTTP_400_BAD_REQUEST
-            )
-
-        if (
-            permission_type
-            in [
-                PermissionTypeEnum.USER_READ.value,
-                PermissionTypeEnum.USER_READ_WRITE.value,
-            ]
-            and not shared_to
-        ):
-            return Response(
-                {"error": "shared_to field is required for the given permission type"},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
-
-        # Create DrawingBoard
-        drawing_board = DrawingBoard.objects.create(
-            owner_user=owner, permission_type=permission_type
-        )
-
-        # Create SharedDrawingBoard entries if needed
-        if permission_type in [
-            PermissionTypeEnum.USER_READ.value,
-            PermissionTypeEnum.USER_READ_WRITE.value,
-        ]:
-            for shared_user_data in shared_to:
-                shared_user = User.objects.get(id=shared_user_data["user_id"])
-                SharedDrawingBoard.objects.create(
-                    drawing_board=drawing_board,
-                    shared_to=shared_user,
-                    can_write=shared_user_data["can_write"],
-                )
-
-            if shared_to:
-                return Response(
-                    {
-                        "error": "shared_to field must be empty for the given permission type"
-                    },
-                    status=status.HTTP_400_BAD_REQUEST,
-                )
-        elif permission_type in [
-            PermissionTypeEnum.USER_READ.value,
-            PermissionTypeEnum.USER_READ_WRITE.value,
-        ]:
-            if not shared_to:
-                return Response(
-                    {
-                        "error": "shared_to field is required for the given permission type"
-                    },
-                    status=status.HTTP_400_BAD_REQUEST,
-                )
-        else:
-            return Response(
-                {"error": "Invalid permission type"}, status=status.HTTP_400_BAD_REQUEST
-            )
-
-        response_data = {
-            "unique_id": drawing_board.unique_id,
-            "permission_type": permission_type,
-            "shared_to": shared_to,
-        }
-
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        drawing_board = serializer.save()
+        response_data = {"unique_id": drawing_board.unique_id}
         return Response(response_data, status=status.HTTP_201_CREATED)
 
 
 class DrawingBoardDetailView(APIView):
+    permission_classes = [JwtAuthenticatedUser]
+
     def get(self, request, drawing_board_id, *args, **kwargs):
         drawing_board = get_object_or_404(DrawingBoard, unique_id=drawing_board_id)
-
-        if drawing_board.permission_type == PermissionTypeEnum.PUBLIC_READ.value:
-            # No authentication required for PUBLIC boards
-            serializer = DrawingBoardDetailSerializer(drawing_board)
-            return Response(serializer.data, status=status.HTTP_200_OK)
-
-        elif drawing_board.permission_type in [
-            PermissionTypeEnum.PROTECTED_READ.value,
-            PermissionTypeEnum.PROTECTED_READ_WRITE.value,
-        ]:
-            # Token authentication required for PROTECTED boards
-            if request.user.is_anonymous:
-                return Response(
-                    {"error": "Authentication required for this drawing board."},
-                    status=status.HTTP_403_FORBIDDEN,
-                )
-            serializer = DrawingBoardDetailSerializer(drawing_board)
-            return Response(serializer.data, status=status.HTTP_200_OK)
-
-        elif drawing_board.permission_type in [
-            PermissionTypeEnum.USER_READ.value,
-            PermissionTypeEnum.USER_READ_WRITE.value,
-        ]:
-            # Check if the requesting user is either the owner or has been shared with
-            if (
-                drawing_board.owner_user == request.user
-                or SharedDrawingBoard.objects.filter(
-                    drawing_board=drawing_board, shared_to=request.user
-                ).exists()
-            ):
-                serializer = DrawingBoardDetailSerializer(drawing_board)
-                return Response(serializer.data, status=status.HTTP_200_OK)
-            else:
-                return Response(
-                    {
-                        "error": "You do not have permission to access this drawing board."
-                    },
-                    status=status.HTTP_403_FORBIDDEN,
-                )
-
-        else:
+        can_read, can_write = DrawingBoardAuthorization(
+            drawing_board=drawing_board, user_id=request.auth_payload.get("user_id")
+        ).get_user_read_and_write_permissions()
+        if not can_read:
             return Response(
-                {"error": "Invalid permission type"}, status=status.HTTP_400_BAD_REQUEST
+                {"error": "Authentication required for this drawing board."},
+                status=status.HTTP_403_FORBIDDEN,
             )
 
+        serializer = DrawingBoardDetailSerializer(drawing_board)
+        return Response(serializer.data, status=status.HTTP_200_OK)
 
-class DrawingBoardAccessControlView(APIView):
-    def get(self, request, drawing_board_id, *args, **kwargs):
-        drawing_board = get_object_or_404(DrawingBoard, unique_id=drawing_board_id)
 
-        if drawing_board.permission_type == PermissionTypeEnum.PUBLIC_READ.value:
-            # No authentication required for PUBLIC boards
-            serializer = DrawingBoardDetailSerializer(drawing_board)
-            return Response(serializer.data, status=status.HTTP_200_OK)
+class DrawingBoardAccessControlView(generics.CreateAPIView):
+    permission_classes = [JwtAuthenticatedUser]
+    serializer_class = DrawingBoardAccessControlSerializer
 
-        elif drawing_board.permission_type in [
-            PermissionTypeEnum.PROTECTED_READ.value,
-            PermissionTypeEnum.PROTECTED_READ_WRITE.value,
-        ]:
-            # Token authentication required for PROTECTED boards
-            if request.user.is_anonymous:
-                return Response(
-                    {"error": "Authentication required for this drawing board."},
-                    status=status.HTTP_403_FORBIDDEN,
+    def create(self, request, drawing_board_id, operation, *args, **kwargs):
+        serializer = DrawingBoardAccessControlSerializer(data=request.data)
+
+        if serializer.is_valid():
+            user_ids = serializer.validated_data["user_ids"]
+            permission_type = PermissionTypeEnum[
+                serializer.validated_data["permission_type"]
+            ].value
+            if operation == "add":
+                add_user_in_drawing_board(drawing_board_id, permission_type, user_ids)
+            elif operation == "remove":
+                remove_users_from_drawing_board_and_socket_channel(
+                    drawing_board_id, permission_type, user_ids
                 )
-            serializer = DrawingBoardDetailSerializer(drawing_board)
-            return Response(serializer.data, status=status.HTTP_200_OK)
-
-        elif drawing_board.permission_type in [
-            PermissionTypeEnum.USER_READ.value,
-            PermissionTypeEnum.USER_READ_WRITE.value,
-        ]:
-            # Check if the requesting user is either the owner or has been shared with
-            if (
-                drawing_board.owner_user == request.user
-                or SharedDrawingBoard.objects.filter(
-                    drawing_board=drawing_board, shared_to=request.user
-                ).exists()
-            ):
-                serializer = DrawingBoardDetailSerializer(drawing_board)
-                return Response(serializer.data, status=status.HTTP_200_OK)
             else:
                 return Response(
-                    {
-                        "error": "You do not have permission to access this drawing board."
-                    },
-                    status=status.HTTP_403_FORBIDDEN,
+                    {"error": "Invalid operation"}, status=status.HTTP_400_BAD_REQUEST
                 )
-
-        else:
-            return Response(
-                {"error": "Invalid permission type"}, status=status.HTTP_400_BAD_REQUEST
-            )
+            return Response(status=status.HTTP_201_CREATED)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
 class DrawingBoardListView(generics.ListAPIView):
     serializer_class = DrawingBoardListSerializer
-    permission_classes = [IsAuthenticated]
+    permission_classes = [JwtAuthenticatedUser]
 
     def get_queryset(self):
-        user_id = self.request.META.get("HTTP_USERID")
-        try:
-            user = User.objects.get(pk=user_id)
-        except User.DoesNotExist:
-            return []  # Or raise an appropriate error response
-
-        owned_boards = DrawingBoard.objects.filter(owner_user=user)
-        shared_boards = DrawingBoard.objects.filter(sharedrawingboard__shared_to=user)
-
+        user_id = self.request.auth_payload.get("user_id")
+        owned_boards = DrawingBoard.objects.filter(owner_user_id=user_id)
+        shared_boards = DrawingBoard.objects.filter(
+            shareddrawingboard__shared_to_id=user_id
+        )
         return owned_boards.union(shared_boards)

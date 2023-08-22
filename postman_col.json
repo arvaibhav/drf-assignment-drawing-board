@@ -1,110 +1,220 @@
 {
-    "info": {
-        "name": "Drawing Board API",
-        "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
-    },
-    "item": [
-        {
-            "name": "Create Drawing Board",
-            "request": {
-                "method": "POST",
-                "header": [
-                    {
-                        "key": "USERID",
-                        "value": "<user_id>"
-                    },
-                    {
-                        "key": "Content-Type",
-                        "value": "application/json"
-                    }
-                ],
-                "url": "http://127.0.0.1:8000/drawing_boards/",
-                "body": {
-                    "mode": "raw",
-                    "raw": "{\"permission_type\": 3, \"shared_to\": [{\"user_id\": 2,\"can_write\": false}]}"
-                }
-            }
-        },
-        {
-            "name": "Drawing Board Detail View",
-            "request": {
-                "method": "GET",
-                "header": [
-                    {
-                        "key": "USERID",
-                        "value": "<user_id>"
-                    }
-                ],
-                "url": "http://127.0.0.1:8000/drawing_boards/{unique_id}/"
-            }
-        },
-        {
-            "name": "Share Drawing Board",
-            "request": {
-                "method": "POST",
-                "header": [
-                    {
-                        "key": "USERID",
-                        "value": "<user_id>"
-                    },
-                    {
-                        "key": "Content-Type",
-                        "value": "application/json"
-                    }
-                ],
-                "url": "http://127.0.0.1:8000/drawing_boards/{unique_id}/share/",
-                "body": {
-                    "mode": "raw",
-                    "raw": "{\"permission_type\": 3, \"shared_to\": [{\"user_id\": 4,\"can_write\": true}]}"
-                }
-            }
-        },
-        {
-            "name": "Drawing Board List View",
-            "request": {
-                "method": "GET",
-                "header": [
-                    {
-                        "key": "USERID",
-                        "value": "<user_id>"
-                    }
-                ],
-                "url": "http://127.0.0.1:8000/drawing_boards/"
-            }
-        },
-        {
-            "name": "User Signup",
-            "request": {
-                "method": "POST",
-                "header": [
-                    {
-                        "key": "Content-Type",
-                        "value": "application/json"
-                    }
-                ],
-                "url": "http://127.0.0.1:8000/users/signup/",
-                "body": {
-                    "mode": "raw",
-                    "raw": "{\"username\": \"<username>\", \"password\": \"<password>\", \"name\": \"<name>\"}"
-                }
-            }
-        },
-        {
-            "name": "User Login",
-            "request": {
-                "method": "POST",
-                "header": [
-                    {
-                        "key": "Content-Type",
-                        "value": "application/json"
-                    }
-                ],
-                "url": "http://127.0.0.1:8000/users/login/",
-                "body": {
-                    "mode": "raw",
-                    "raw": "{\"username\": \"<username>\", \"password\": \"<password>\"}"
-                }
-            }
-        }
-    ]
+	"info": {
+		"_postman_id": "01f4089f-faad-4342-901d-220a7e8977be",
+		"name": "Drawing Board API",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+		"_exporter_id": "25229875"
+	},
+	"item": [
+		{
+			"name": "User Signup",
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "Content-Type",
+						"value": "application/json"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n    \"username\": \"example21\",\n    \"password\": \"password1\"\n}"
+				},
+				"url": {
+					"raw": "127.0.0.1:8000/api/v1/signup/",
+					"host": [
+						"127",
+						"0",
+						"0",
+						"1"
+					],
+					"port": "8000",
+					"path": [
+						"api",
+						"v1",
+						"signup",
+						""
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "User Login",
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "Content-Type",
+						"value": "application/json"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n    \"username\": \"example21\",\n    \"password\": \"password1\"\n}"
+				},
+				"url": {
+					"raw": "127.0.0.1:8000/api/v1/login/",
+					"host": [
+						"127",
+						"0",
+						"0",
+						"1"
+					],
+					"port": "8000",
+					"path": [
+						"api",
+						"v1",
+						"login",
+						""
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Drawing Board List",
+			"request": {
+				"method": "GET",
+				"header": [
+					{
+						"key": "Authorization",
+						"value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VyX2lkIjoyLCJleHAiOjE2OTI2NTY1MTR9.sHsPkhxr-4559xh2e8yuB73Epdawps-bc90nCDqLPEQ"
+					},
+					{
+						"key": "Content-Type",
+						"value": "application/json"
+					}
+				],
+				"url": {
+					"raw": "127.0.0.1:8000/api/v1/drawing_boards/",
+					"host": [
+						"127",
+						"0",
+						"0",
+						"1"
+					],
+					"port": "8000",
+					"path": [
+						"api",
+						"v1",
+						"drawing_boards",
+						""
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Create Drawing Board",
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "Authorization",
+						"value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VyX2lkIjoyLCJleHAiOjE2OTI2NzAzMzN9.KBXBGQBEJvDIcGiY_Yv6u65C_pLN0O2E490Z5c40iuY"
+					},
+					{
+						"key": "Content-Type",
+						"value": "application/json"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n    \"header\": \"drawing board sample\",\n    \"description\": \"for testing\"\n}"
+				},
+				"url": {
+					"raw": "127.0.0.1:8000/api/v1/drawing_boards/create/",
+					"host": [
+						"127",
+						"0",
+						"0",
+						"1"
+					],
+					"port": "8000",
+					"path": [
+						"api",
+						"v1",
+						"drawing_boards",
+						"create",
+						""
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Drawing Board Detail",
+			"request": {
+				"method": "GET",
+				"header": [
+					{
+						"key": "Authorization",
+						"value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VyX2lkIjoyLCJleHAiOjE2OTI2NzAzMzN9.KBXBGQBEJvDIcGiY_Yv6u65C_pLN0O2E490Z5c40iuY"
+					},
+					{
+						"key": "Content-Type",
+						"value": "application/json"
+					}
+				],
+				"url": {
+					"raw": "127.0.0.1:8000/api/v1/drawing_boards/e0742785-fa32-482e-bda9-cfd93dd19a31",
+					"host": [
+						"127",
+						"0",
+						"0",
+						"1"
+					],
+					"port": "8000",
+					"path": [
+						"api",
+						"v1",
+						"drawing_boards",
+						"e0742785-fa32-482e-bda9-cfd93dd19a31"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "add user to drawing board",
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "Authorization",
+						"value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VyX2lkIjoyLCJleHAiOjE2OTI2NzAzMzN9.KBXBGQBEJvDIcGiY_Yv6u65C_pLN0O2E490Z5c40iuY"
+					},
+					{
+						"key": "Content-Type",
+						"value": "application/json"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n    \"user_ids\":[2],\n    \"permission_type\":\"USER_WRITE\"\n}"
+				},
+				"url": {
+					"raw": "127.0.0.1:8000/api/v1/drawing_boards/e0742785-fa32-482e-bda9-cfd93dd19a31/permissions/add/",
+					"host": [
+						"127",
+						"0",
+						"0",
+						"1"
+					],
+					"port": "8000",
+					"path": [
+						"api",
+						"v1",
+						"drawing_boards",
+						"e0742785-fa32-482e-bda9-cfd93dd19a31",
+						"permissions",
+						"add",
+						""
+					]
+				}
+			},
+			"response": []
+		}
+	]
 }
